@@ -31,6 +31,8 @@ db.exec(`
     value TEXT
   );
   INSERT OR IGNORE INTO settings (key, value) VALUES ('payment_status', 'active');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('upi_id', '9511648488@ybl');
+  INSERT OR IGNORE INTO settings (key, value) VALUES ('admin_name', 'Abhay Rathod');
 `);
 
 // Migration: Add is_trashed column if it doesn't exist
@@ -55,8 +57,12 @@ async function startServer() {
       }
 
       const { name, phone, address, amount } = req.body;
-      const upiId = process.env.ADMIN_UPI_ID || "9511648488@ybl"; // Default if not set
-      const adminName = process.env.ADMIN_NAME || "Abhay Rathod";
+      
+      const upiIdRow = db.prepare("SELECT value FROM settings WHERE key = 'upi_id'").get() as { value: string };
+      const adminNameRow = db.prepare("SELECT value FROM settings WHERE key = 'admin_name'").get() as { value: string };
+      
+      const upiId = upiIdRow?.value || process.env.ADMIN_UPI_ID || "9511648488@ybl";
+      const adminName = adminNameRow?.value || process.env.ADMIN_NAME || "Abhay Rathod";
       
       // UPI URL format: upi://pay?pa=address@bank&pn=PayeeName&am=100.00&cu=INR
       const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(adminName)}&am=${amount}&cu=INR&tn=${encodeURIComponent("Payment from " + name)}`;
@@ -141,6 +147,57 @@ async function startServer() {
     }
     db.prepare("UPDATE settings SET value = ? WHERE key = 'payment_status'").run(status);
     res.json({ success: true, status });
+  });
+
+  // Get QR Settings (Admin)
+  app.get("/api/admin/qr-settings", (req, res) => {
+    const upiId = db.prepare("SELECT value FROM settings WHERE key = 'upi_id'").get() as { value: string };
+    const adminName = db.prepare("SELECT value FROM settings WHERE key = 'admin_name'").get() as { value: string };
+    
+    res.json({ 
+      upiId: upiId?.value || "", 
+      adminName: adminName?.value || "" 
+    });
+  });
+
+  // Update QR Settings (Admin)
+  app.post("/api/admin/update-qr-settings", (req, res) => {
+    const { upiId, adminName } = req.body;
+    
+    if (upiId !== undefined) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('upi_id', ?)").run(upiId);
+    }
+    
+    if (adminName !== undefined) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_name', ?)").run(adminName);
+    }
+    
+    res.json({ success: true });
+  });
+
+  // Edit Payment Details (Admin)
+  app.post("/api/admin/edit-payment/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, phone, address, amount, status } = req.body;
+      
+      const stmt = db.prepare(`
+        UPDATE payments 
+        SET name = ?, phone = ?, address = ?, amount = ?, status = ?
+        WHERE id = ?
+      `);
+      
+      const result = stmt.run(name, phone, address, amount, status, id);
+      
+      if (result.changes > 0) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Payment not found" });
+      }
+    } catch (error) {
+      console.error("Error editing payment:", error);
+      res.status(500).json({ error: "Failed to edit payment" });
+    }
   });
 
   // Move Single Payment to Trash (Admin)

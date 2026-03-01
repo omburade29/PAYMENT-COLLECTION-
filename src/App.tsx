@@ -21,7 +21,11 @@ import {
   AlertCircle,
   ChevronLeft,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Settings,
+  X,
+  Edit2,
+  Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -122,6 +126,15 @@ export default function App() {
   const [showTrash, setShowTrash] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'active' | 'paused'>('active');
+  
+  // QR Settings State
+  const [showQRSettings, setShowQRSettings] = useState(false);
+  const [qrSettings, setQrSettings] = useState({ upiId: '', adminName: '' });
+  const [qrSettingsLoading, setQrSettingsLoading] = useState(false);
+
+  // Edit Payment State
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<Payment>>({});
 
   // Fetch payment status and trash on mount
   useEffect(() => {
@@ -178,6 +191,40 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to update payment status');
+    }
+  };
+
+  const fetchQRSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/qr-settings');
+      const data = await res.json();
+      setQrSettings(data);
+    } catch (err) {
+      console.error('Failed to fetch QR settings');
+    }
+  };
+
+  const saveQRSettings = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setQrSettingsLoading(true);
+    try {
+      const res = await fetch('/api/admin/update-qr-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(qrSettings)
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('QR Settings updated successfully!');
+        setShowQRSettings(false);
+      } else {
+        alert('Failed to update QR settings');
+      }
+    } catch (err) {
+      console.error('Failed to update QR settings');
+      alert('Failed to update QR settings');
+    } finally {
+      setQrSettingsLoading(false);
     }
   };
 
@@ -399,6 +446,37 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to permanently delete payment');
+    }
+  };
+
+  const startEditingPayment = (payment: Payment) => {
+    setEditingPaymentId(payment.id);
+    setEditFormData(payment);
+  };
+
+  const cancelEditingPayment = () => {
+    setEditingPaymentId(null);
+    setEditFormData({});
+  };
+
+  const saveEditedPayment = async () => {
+    if (!editingPaymentId) return;
+    try {
+      const res = await fetch(`/api/admin/edit-payment/${editingPaymentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData)
+      });
+      if ((await res.json()).success) {
+        setEditingPaymentId(null);
+        setEditFormData({});
+        fetchPayments();
+      } else {
+        alert('Failed to save changes');
+      }
+    } catch (err) {
+      console.error('Failed to save edited payment');
+      alert('Failed to save changes');
     }
   };
 
@@ -746,6 +824,15 @@ export default function App() {
                   <Button 
                     variant="outline" 
                     onClick={() => {
+                      setShowQRSettings(true);
+                      fetchQRSettings();
+                    }}
+                  >
+                    <Settings size={18} /> QR Settings
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
                       setShowTrash(!showTrash);
                       if (!showTrash) fetchTrash();
                     }}
@@ -821,31 +908,99 @@ export default function App() {
                             })}
                           </td>
                           <td className="px-6 py-4 font-medium text-slate-900">
-                            {payment.name}
+                            {editingPaymentId === payment.id ? (
+                              <input 
+                                type="text" 
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                value={editFormData.name || ''} 
+                                onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                              />
+                            ) : (
+                              payment.name
+                            )}
                           </td>
                           <td className="px-6 py-4 text-slate-600">
-                            +91 {payment.phone}
+                            {editingPaymentId === payment.id ? (
+                              <input 
+                                type="text" 
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                value={editFormData.phone || ''} 
+                                onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                              />
+                            ) : (
+                              `+91 ${payment.phone}`
+                            )}
                           </td>
                           <td className="px-6 py-4 text-slate-500 max-w-xs truncate">
-                            {payment.address}
+                            {editingPaymentId === payment.id ? (
+                              <input 
+                                type="text" 
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                value={editFormData.address || ''} 
+                                onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
+                              />
+                            ) : (
+                              payment.address
+                            )}
                           </td>
                           <td className="px-6 py-4 font-bold text-emerald-600">
-                            ₹{payment.amount}
+                            {editingPaymentId === payment.id ? (
+                              <input 
+                                type="number" 
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                value={editFormData.amount || ''} 
+                                onChange={(e) => setEditFormData({...editFormData, amount: Number(e.target.value)})}
+                              />
+                            ) : (
+                              `₹${payment.amount}`
+                            )}
                           </td>
                           <td className="px-6 py-4 font-mono text-xs text-slate-400">
                             {payment.transaction_id}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={cn(
-                              "px-2.5 py-1 rounded-full text-xs font-bold",
-                              showTrash ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
-                            )}>
-                              {showTrash ? "TRASHED" : "SUCCESS"}
-                            </span>
+                            {editingPaymentId === payment.id ? (
+                              <select 
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                value={editFormData.status || ''}
+                                onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
+                              >
+                                <option value="success">SUCCESS</option>
+                                <option value="failed">FAILED</option>
+                                <option value="pending">PENDING</option>
+                              </select>
+                            ) : (
+                              <span className={cn(
+                                "px-2.5 py-1 rounded-full text-xs font-bold uppercase",
+                                showTrash ? "bg-red-100 text-red-700" : 
+                                payment.status === 'success' ? "bg-emerald-100 text-emerald-700" :
+                                payment.status === 'failed' ? "bg-red-100 text-red-700" :
+                                "bg-amber-100 text-amber-700"
+                              )}>
+                                {showTrash ? "TRASHED" : payment.status || "SUCCESS"}
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {showTrash ? (
+                              {editingPaymentId === payment.id ? (
+                                <>
+                                  <button 
+                                    onClick={saveEditedPayment}
+                                    className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="Save"
+                                  >
+                                    <Save size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={cancelEditingPayment}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </>
+                              ) : showTrash ? (
                                 <>
                                   <button 
                                     onClick={() => restorePayment(payment.id)}
@@ -863,13 +1018,22 @@ export default function App() {
                                   </button>
                                 </>
                               ) : (
-                                <button 
-                                  onClick={() => deletePayment(payment.id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Move to Trash"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
+                                <>
+                                  <button 
+                                    onClick={() => startEditingPayment(payment)}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit Payment"
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => deletePayment(payment.id)}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Move to Trash"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -887,6 +1051,50 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {/* QR Settings Modal */}
+          {showQRSettings && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              >
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="text-xl font-display font-bold text-slate-900">QR Code Settings</h3>
+                  <button 
+                    onClick={() => setShowQRSettings(false)}
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <form onSubmit={saveQRSettings} className="p-6 space-y-4">
+                  <Input 
+                    label="UPI ID" 
+                    name="upiId" 
+                    placeholder="Enter UPI ID" 
+                    value={qrSettings.upiId}
+                    onChange={(e) => setQrSettings({ ...qrSettings, upiId: e.target.value })}
+                    required 
+                  />
+                  <Input 
+                    label="Payee Name" 
+                    name="adminName" 
+                    placeholder="Enter Payee Name" 
+                    value={qrSettings.adminName}
+                    onChange={(e) => setQrSettings({ ...qrSettings, adminName: e.target.value })}
+                    required 
+                  />
+                  <div className="pt-4">
+                    <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={qrSettingsLoading}>
+                      {qrSettingsLoading ? "Saving..." : "Save Settings"}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </main>
