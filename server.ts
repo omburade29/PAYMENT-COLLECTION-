@@ -111,14 +111,33 @@ async function startServer() {
   // Admin Login
   app.post("/api/admin/login", (req, res) => {
     const { username, password } = req.body;
-    const adminUser = process.env.ADMIN_USERNAME || "Abhay";
-    const adminPass = process.env.ADMIN_PASSWORD || "Abhay123";
+    
+    const dbUser = db.prepare("SELECT value FROM settings WHERE key = 'admin_username'").get() as { value: string };
+    const dbPass = db.prepare("SELECT value FROM settings WHERE key = 'admin_password'").get() as { value: string };
+    
+    const adminUser = dbUser?.value || process.env.ADMIN_USERNAME || "Abhay";
+    const adminPass = dbPass?.value || process.env.ADMIN_PASSWORD || "Abhay123";
 
     if (username === adminUser && password === adminPass) {
       res.json({ success: true, token: "admin-session-token" });
     } else {
       res.status(401).json({ success: false, error: "Invalid credentials" });
     }
+  });
+
+  // Update Admin Credentials (Admin)
+  app.post("/api/admin/update-credentials", (req, res) => {
+    const { newUsername, newPassword } = req.body;
+    
+    if (newUsername) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_username', ?)").run(newUsername);
+    }
+    
+    if (newPassword) {
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)").run(newPassword);
+    }
+    
+    res.json({ success: true });
   });
 
   // Get Payments (Admin)

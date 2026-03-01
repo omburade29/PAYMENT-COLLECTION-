@@ -577,7 +577,7 @@ export default function App() {
                     <Input 
                       label="Name" 
                       icon={User} 
-                      placeholder="John Doe"
+                      placeholder="Enter Name"
                       value={formData.name}
                       onChange={(e: any) => setFormData({...formData, name: e.target.value})}
                     />
@@ -594,7 +594,7 @@ export default function App() {
                         <input
                           type="tel"
                           maxLength={10}
-                          placeholder="9876543210"
+                          placeholder="Enter Phone Number"
                           className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none"
                           value={formData.phone}
                           onChange={(e: any) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})}
@@ -764,7 +764,7 @@ export default function App() {
                       {error}
                     </div>
                   )}
-                  <Input label="Username" name="username" placeholder="Abhay" required />
+                  <Input label="Username" name="username" placeholder="Enter Username" required />
                   <Input label="Password" name="password" type="password" placeholder="••••••••" required />
                   <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800">
                     Login to Dashboard
