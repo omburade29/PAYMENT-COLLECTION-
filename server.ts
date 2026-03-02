@@ -194,31 +194,6 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  // Edit Payment Details (Admin)
-  app.post("/api/admin/edit-payment/:id", (req, res) => {
-    try {
-      const { id } = req.params;
-      const { name, phone, address, amount, status } = req.body;
-      
-      const stmt = db.prepare(`
-        UPDATE payments 
-        SET name = ?, phone = ?, address = ?, amount = ?, status = ?
-        WHERE id = ?
-      `);
-      
-      const result = stmt.run(name, phone, address, amount, status, id);
-      
-      if (result.changes > 0) {
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: "Payment not found" });
-      }
-    } catch (error) {
-      console.error("Error editing payment:", error);
-      res.status(500).json({ error: "Failed to edit payment" });
-    }
-  });
-
   // Move Single Payment to Trash (Admin)
   app.post("/api/admin/delete-payment/:id", (req, res) => {
     try {
