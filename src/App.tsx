@@ -24,7 +24,6 @@ import {
   RotateCcw,
   Settings,
   X,
-  Edit2,
   Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -131,10 +130,6 @@ export default function App() {
   const [showQRSettings, setShowQRSettings] = useState(false);
   const [qrSettings, setQrSettings] = useState({ upiId: '', adminName: '' });
   const [qrSettingsLoading, setQrSettingsLoading] = useState(false);
-
-  // Edit Payment State
-  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
-  const [editFormData, setEditFormData] = useState<Partial<Payment>>({});
 
   // Fetch payment status and trash on mount
   useEffect(() => {
@@ -446,37 +441,6 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to permanently delete payment');
-    }
-  };
-
-  const startEditingPayment = (payment: Payment) => {
-    setEditingPaymentId(payment.id);
-    setEditFormData(payment);
-  };
-
-  const cancelEditingPayment = () => {
-    setEditingPaymentId(null);
-    setEditFormData({});
-  };
-
-  const saveEditedPayment = async () => {
-    if (!editingPaymentId) return;
-    try {
-      const res = await fetch(`/api/admin/edit-payment/${editingPaymentId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData)
-      });
-      if ((await res.json()).success) {
-        setEditingPaymentId(null);
-        setEditFormData({});
-        fetchPayments();
-      } else {
-        alert('Failed to save changes');
-      }
-    } catch (err) {
-      console.error('Failed to save edited payment');
-      alert('Failed to save changes');
     }
   };
 
@@ -908,99 +872,34 @@ export default function App() {
                             })}
                           </td>
                           <td className="px-6 py-4 font-medium text-slate-900">
-                            {editingPaymentId === payment.id ? (
-                              <input 
-                                type="text" 
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                value={editFormData.name || ''} 
-                                onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
-                              />
-                            ) : (
-                              payment.name
-                            )}
+                            {payment.name}
                           </td>
                           <td className="px-6 py-4 text-slate-600">
-                            {editingPaymentId === payment.id ? (
-                              <input 
-                                type="text" 
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                value={editFormData.phone || ''} 
-                                onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
-                              />
-                            ) : (
-                              `+91 ${payment.phone}`
-                            )}
+                            {`+91 ${payment.phone}`}
                           </td>
                           <td className="px-6 py-4 text-slate-500 max-w-xs truncate">
-                            {editingPaymentId === payment.id ? (
-                              <input 
-                                type="text" 
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                value={editFormData.address || ''} 
-                                onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
-                              />
-                            ) : (
-                              payment.address
-                            )}
+                            {payment.address}
                           </td>
                           <td className="px-6 py-4 font-bold text-emerald-600">
-                            {editingPaymentId === payment.id ? (
-                              <input 
-                                type="number" 
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                value={editFormData.amount || ''} 
-                                onChange={(e) => setEditFormData({...editFormData, amount: Number(e.target.value)})}
-                              />
-                            ) : (
-                              `₹${payment.amount}`
-                            )}
+                            {`₹${payment.amount}`}
                           </td>
                           <td className="px-6 py-4 font-mono text-xs text-slate-400">
                             {payment.transaction_id}
                           </td>
                           <td className="px-6 py-4">
-                            {editingPaymentId === payment.id ? (
-                              <select 
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                value={editFormData.status || ''}
-                                onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
-                              >
-                                <option value="success">SUCCESS</option>
-                                <option value="failed">FAILED</option>
-                                <option value="pending">PENDING</option>
-                              </select>
-                            ) : (
-                              <span className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-bold uppercase",
-                                showTrash ? "bg-red-100 text-red-700" : 
-                                payment.status === 'success' ? "bg-emerald-100 text-emerald-700" :
-                                payment.status === 'failed' ? "bg-red-100 text-red-700" :
-                                "bg-amber-100 text-amber-700"
-                              )}>
-                                {showTrash ? "TRASHED" : payment.status || "SUCCESS"}
-                              </span>
-                            )}
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-full text-xs font-bold uppercase",
+                              showTrash ? "bg-red-100 text-red-700" : 
+                              payment.status === 'success' ? "bg-emerald-100 text-emerald-700" :
+                              payment.status === 'failed' ? "bg-red-100 text-red-700" :
+                              "bg-amber-100 text-amber-700"
+                            )}>
+                              {showTrash ? "TRASHED" : payment.status || "SUCCESS"}
+                            </span>
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {editingPaymentId === payment.id ? (
-                                <>
-                                  <button 
-                                    onClick={saveEditedPayment}
-                                    className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                    title="Save"
-                                  >
-                                    <Save size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={cancelEditingPayment}
-                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                                    title="Cancel"
-                                  >
-                                    <X size={16} />
-                                  </button>
-                                </>
-                              ) : showTrash ? (
+                              {showTrash ? (
                                 <>
                                   <button 
                                     onClick={() => restorePayment(payment.id)}
@@ -1019,13 +918,6 @@ export default function App() {
                                 </>
                               ) : (
                                 <>
-                                  <button 
-                                    onClick={() => startEditingPayment(payment)}
-                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Edit Payment"
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
                                   <button 
                                     onClick={() => deletePayment(payment.id)}
                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
